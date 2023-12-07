@@ -191,10 +191,17 @@ noteCoordinates[23] = {13, 1}
 noteCoordinates[24] = {14, 1}
 noteCoordinates[25] = {15, 1}
 
-
-
-
-
+bassNoteCoordinates = {}
+bassNoteCoordinates[1] = {12, 8}
+bassNoteCoordinates[2] = {13, 8}
+bassNoteCoordinates[3] = {14, 8}
+bassNoteCoordinates[4] = {15, 8}
+bassNoteCoordinates[5] = {16, 8}
+bassNoteCoordinates[6] = {12, 7}
+bassNoteCoordinates[7] = {13, 7}
+bassNoteCoordinates[8] = {14, 7}
+bassNoteCoordinates[9] = {15, 7}
+bassNoteCoordinates[10] = {16, 7}
 
 
 
@@ -210,6 +217,7 @@ bassArm = 0
 compArm = 0
 bassStep = 0
 lastCompNote = 0
+lastBassIndex = 1
 
 for i = 1,6 do
     lastPitchInRow[i] = {(7 - i) * 7}
@@ -321,11 +329,13 @@ end
 function randomBass(x,y)
     if bassFlag == 1 then
         makeBassCollection()
+        bassCollection = noFlatNine()
+        bassOctaves()
         bassFlag = 0
     end
-    local pitch = bassCollection[math.random(1, #bassCollection)] - 12
+    local pitch = bassCollection[math.random(1, #bassCollection)]
     while pitch % 12 == lastMelodyPitch % 12 or pitch % 12 == lastCompNote % 12 or pitch % 12 == lastBassPitch do
-        pitch = bassCollection[math.random(1, #bassCollection)] - 12
+        pitch = bassCollection[math.random(1, #bassCollection)]
     end
     playNote(pitch, math.random(90,120), 3, x, y)
     lastBassPitch = pitch % 12
@@ -366,8 +376,22 @@ function appendNoteToSequence(value, list)
 end
 
 function playNote(pitch, vel, ch, x, y)
+  if ch == 3 then
+      m:note_on(pitch - 12 + params:get("octaveOffset") * 12,vel,ch)
+      heldNotes[ch][x][y] = pitch - 12 + params:get("octaveOffset") * 12
+  else
     m:note_on(pitch + params:get("octaveOffset") * 12,vel,ch)
     heldNotes[ch][x][y] = pitch + params:get("octaveOffset") * 12
+  end
+    if ch == 3 then
+      print(pitch)
+      print(tab.print(bassCollection))
+      print(findIndex(pitch, bassCollection))
+      if findIndex(pitch, bassCollection) <= 10 then
+        lastBassIndex = findIndex(pitch, bassCollection)
+      else lastBassINdex = findIndex((pitch) % 12, bassCollection)
+      end
+    end
 end
 
 function releaseNote(x,y)
@@ -381,7 +405,6 @@ end
 
 function pollForNotes(x,y)
     bassStep = bassStep + 1
-    print(lastMelodyPitch)
     if math.random(1,100) <= params:get("melodyProb") then
         melodyNote(x,y)
     end
@@ -567,13 +590,12 @@ function init()
     makeBassCollection()
     bassCollection = noFlatNine()
     bassOctaves()
+    gridmap()
     print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~loaded up!')
 end
 
 ----grid stuff!
 function g.key(x, y, z, vel, dup)
-    g:all(0)
-    gridmap()
 
     if y <= 6 then channel = 1
     elseif y >= 7 then channel = 3
@@ -592,22 +614,29 @@ function g.key(x, y, z, vel, dup)
                 transition(-1, x, y)
             end
         end
+        if y >= 7 and x >= 11 then
+            bassNote(x,y)
+        end
         if y == 8 and x == 9 then
             compArm = 1
         end
         if y == 8 and x == 10 then
             bassArm = 1
         end
+        if x <= 3 then
+            changeProbabilities(x,y)
+        end
     end
     
     if z == 0 then
         releaseNote(x,y)
     end
+    gridmap()
 
-    g:refresh()
 end
 
 function gridmap()
+    g:all(0)
     for y = 1,6 do
       g:led(16,y,3)
       g:led(12,y,3)
@@ -625,6 +654,11 @@ function gridmap()
     if lastMelodyIndex <= 25 and lastMelodyIndex >= 8 then 
         g:led(noteCoordinates[lastMelodyIndex][1], noteCoordinates[lastMelodyIndex][2], 0)
     end
+    if lastBassIndex then
+      if lastBassIndex <= 10 then
+        g:led(bassNoteCoordinates[lastBassIndex][1], bassNoteCoordinates[lastBassIndex][2], 0)
+      end
+    end
     if bassArm == 1 then
         g:led(10, 8, 15)
     end
@@ -632,4 +666,39 @@ function gridmap()
         g:led(9, 8, 15)
     end
     g:led(11, 8, math.min(math.ceil(15 * bassStep / params:get('bassEvery')), 15))
+    if params:get("melodyProb") == 0 then
+        g:led(1, 8, 15)
+    else g:led(1, ((100 - params:get("melodyProb")) / 14.3 ) + 1, 15)
+    end
+    if params:get("compProb") == 0 then
+        g:led(2, 8, 15)
+    else g:led(2, ((100 - params:get("compProb")) / 14.3 ) + 1, 15)
+    end
+    if params:get("bassProb") == 0 then
+        g:led(3, 8, 15)
+    else g:led(3, ((100 - params:get("bassProb")) / 14.3 ) + 1, 15)
+    end
+    g:refresh()
   end
+
+function bassNote(x,y)
+    if bassFlag == 1 then
+        makeBassCollection()
+        bassCollection = noFlatNine()
+        bassOctaves()
+        bassFlag = 0
+    end
+    local pitch = (x - 11 + (8 - y) * 5) % #bassCollection / 2 + math.floor((x - 11 + (8 - y) * 5) / (#bassCollection / 2))
+    playNote(bassCollection[(x - 11 + (8 - y) * 5)], math.random(60,120), 3, x, y)
+end
+
+function changeProbabilities(x,y)
+    if x == 1 then
+        params:set("melodyProb", math.floor(100 - (y - 1) * 14.3))
+        print(params:get("melodyProb"))
+    elseif x == 2 then
+        params:set("compProb",math.floor(100 - (y - 1) * 14.3))
+    elseif x == 3 then
+        params:set("bassProb", math.floor(100 - (y - 1) * 14.3))
+    end
+end
