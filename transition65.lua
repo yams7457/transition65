@@ -585,6 +585,7 @@ end
 
 
 function init()
+    print('right file!')
     qualitiesToRoots()
     initialPentad()
     makeBassCollection()
@@ -668,15 +669,15 @@ function gridmap()
     g:led(11, 8, math.min(math.ceil(15 * bassStep / params:get('bassEvery')), 15))
     if params:get("melodyProb") == 0 then
         g:led(1, 8, 15)
-    else g:led(1, ((100 - params:get("melodyProb")) / 14.3 ) + 1, 15)
+    else g:led(1, math.floor((100 - params:get("melodyProb")) / 14.3 + 1), 15)
     end
     if params:get("compProb") == 0 then
         g:led(2, 8, 15)
-    else g:led(2, ((100 - params:get("compProb")) / 14.3 ) + 1, 15)
+    else g:led(2, math.floor(((100 - params:get("compProb")) / 14.3 ) + 1), 15)
     end
     if params:get("bassProb") == 0 then
         g:led(3, 8, 15)
-    else g:led(3, ((100 - params:get("bassProb")) / 14.3 ) + 1, 15)
+    else g:led(3, math.floor(((100 - params:get("bassProb")) / 14.3 ) + 1), 15)
     end
     g:refresh()
   end
